@@ -1,11 +1,11 @@
 {
-  "name": "material2-srcs",
+  "name": "@angular/material",
   "description": "Material Design components for Angular",
-  "homepage": "https://github.com/angular/material2",
-  "bugs": "https://github.com/angular/material2/issues",
+  "homepage": "https://github.com/tomasvoj/material2",
+  "bugs": "https://github.com/tomasvoj/material2/issues",
   "repository": {
     "type": "git",
-    "url": "https://github.com/angular/material2.git"
+    "url": "https://github.com/tomasvoj/material2.git"
   },
   "scripts": {
     "build": "gulp build:components",
@@ -19,7 +19,7 @@
     "docs": "gulp docs",
     "api": "gulp api-docs"
   },
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3-chips",
   "license": "MIT",
   "engines": {
     "node": ">= 5.4.1 < 7"
