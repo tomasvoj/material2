@@ -16,8 +16,8 @@ commitAuthorName=$(git --no-pager show -s --format='%an' HEAD)
 commitAuthorEmail=$(git --no-pager show -s --format='%ae' HEAD)
 commitMessage=$(git log --oneline -n 1)
 
-repoName="material2"
-repoUrl="https://github.com/tomasvoj/material2.git"
+repoName="material2-builds"
+repoUrl="git@github.com:tomasvoj/material2-builds.git"
 repoDir="tmp/$repoName"
 
 # Create a release of the current repository.
