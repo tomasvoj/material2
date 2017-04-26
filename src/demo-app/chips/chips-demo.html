@@ -23,7 +23,6 @@
 
       <md-chip-list selectable="false">
         <md-chip color="accent" selected="true">Selected/Colored</md-chip>
-
         <md-chip color="warn" selected="true" *ngIf="visible"
                  (destroy)="alert('chip destroyed')" (remove)="toggleVisible()">
           <md-icon md-chip-remove>cancel</md-icon>
