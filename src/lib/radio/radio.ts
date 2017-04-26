@@ -23,9 +23,9 @@ import {
   UniqueSelectionDispatcher,
   MdRipple,
   FocusOriginMonitor,
+  FocusOrigin,
 } from '../core';
 import {coerceBooleanProperty} from '../core/coercion/boolean-property';
-import {Subscription} from 'rxjs/Subscription';
 
 
 /**
@@ -95,8 +95,7 @@ export class MdRadioGroup implements AfterContentInit, ControlValueAccessor {
    * Change events are only emitted when the value changes due to user interaction with
    * a radio button (the same behavior as `<input type-"radio">`).
    */
-  @Output()
-  change: EventEmitter<MdRadioChange> = new EventEmitter<MdRadioChange>();
+  @Output() change: EventEmitter<MdRadioChange> = new EventEmitter<MdRadioChange>();
 
   /** Child radio buttons. */
   @ContentChildren(forwardRef(() => MdRadioButton))
@@ -379,8 +378,7 @@ export class MdRadioButton implements OnInit, AfterViewInit, OnDestroy {
    * Change events are only emitted when the value changes due to user interaction with
    * the radio button (the same behavior as `<input type-"radio">`).
    */
-  @Output()
-  change: EventEmitter<MdRadioChange> = new EventEmitter<MdRadioChange>();
+  @Output() change: EventEmitter<MdRadioChange> = new EventEmitter<MdRadioChange>();
 
   /** The parent radio group. May or may not be present. */
   radioGroup: MdRadioGroup;
@@ -405,11 +403,8 @@ export class MdRadioButton implements OnInit, AfterViewInit, OnDestroy {
   /** The child ripple instance. */
   @ViewChild(MdRipple) _ripple: MdRipple;
 
-  /** Stream of focus event from the focus origin monitor. */
-  private _focusOriginMonitorSubscription: Subscription;
-
   /** Reference to the current focus ripple. */
-  private _focusedRippleRef: RippleRef;
+  private _focusRipple: RippleRef;
 
   /** The native `<input type=radio>` element */
   @ViewChild('input') _inputElement: ElementRef;
@@ -446,22 +441,13 @@ export class MdRadioButton implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
-    this._focusOriginMonitorSubscription = this._focusOriginMonitor
+    this._focusOriginMonitor
       .monitor(this._inputElement.nativeElement, this._renderer, false)
-      .subscribe(focusOrigin => {
-        if (focusOrigin === 'keyboard' && !this._focusedRippleRef) {
-          this._focusedRippleRef = this._ripple.launch(0, 0, { persistent: true, centered: true });
-        }
-      });
+      .subscribe(focusOrigin => this._onInputFocusChange(focusOrigin));
   }
 
   ngOnDestroy() {
-    this._focusOriginMonitor.unmonitor(this._inputElement.nativeElement);
-
-    if (this._focusOriginMonitorSubscription) {
-      this._focusOriginMonitorSubscription.unsubscribe();
-      this._focusOriginMonitorSubscription = null;
-    }
+    this._focusOriginMonitor.stopMonitoring(this._inputElement.nativeElement);
   }
 
   /** Dispatch change event with current value. */
@@ -474,17 +460,6 @@ export class MdRadioButton implements OnInit, AfterViewInit, OnDestroy {
 
   _isRippleDisabled() {
     return this.disableRipple || this.disabled;
-  }
-
-  _onInputBlur() {
-    if (this._focusedRippleRef) {
-      this._focusedRippleRef.fadeOut();
-      this._focusedRippleRef = null;
-    }
-
-    if (this.radioGroup) {
-      this.radioGroup._touch();
-    }
   }
 
   _onInputClick(event: Event) {
@@ -517,6 +492,22 @@ export class MdRadioButton implements OnInit, AfterViewInit, OnDestroy {
       this.radioGroup._touch();
       if (groupValueChanged) {
         this.radioGroup._emitChangeEvent();
+      }
+    }
+  }
+
+  /** Function is called whenever the focus changes for the input element. */
+  private _onInputFocusChange(focusOrigin: FocusOrigin) {
+    if (!this._focusRipple && focusOrigin === 'keyboard') {
+      this._focusRipple = this._ripple.launch(0, 0, {persistent: true, centered: true});
+    } else if (!focusOrigin) {
+      if (this.radioGroup) {
+        this.radioGroup._touch();
+      }
+
+      if (this._focusRipple) {
+        this._focusRipple.fadeOut();
+        this._focusRipple = null;
       }
     }
   }

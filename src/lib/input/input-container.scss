@@ -4,6 +4,8 @@
 
 
 $mat-input-floating-placeholder-scale-factor: 0.75 !default;
+$mat-input-wrapper-spacing: 1em !default;
+$mat-input-hint-min-space: 10px !default;
 
 // Gradient for showing the dashed line when the input is disabled.
 $mat-input-underline-disabled-background-image:
@@ -41,7 +43,7 @@ $mat-input-underline-disabled-background-image:
 // Global wrapper. We need to apply margin to the element for spacing, but
 // cannot apply it to the host element directly.
 .mat-input-wrapper {
-  margin: 1em 0;
+  margin: $mat-input-wrapper-spacing 0;
   // Account for the underline which has 4px of margin + 2px of border.
   padding-bottom: 6px;
 }
@@ -82,6 +84,9 @@ $mat-input-underline-disabled-background-image:
   outline: none;
   padding: 0;
   width: 100%;
+
+  // Needed to make last line of the textarea line up with the baseline.
+  vertical-align: bottom;
 
   .mat-end & {
     text-align: right;
@@ -219,27 +224,32 @@ $mat-input-underline-disabled-background-image:
   }
 }
 
-// The hint is shown below the underline. There can be more than one; one at the start
-// and one at the end.
-.mat-hint {
-  display: block;
+// Wrapper for the hints and error messages. Provides positioning and text size.
+// Note that we're using `top` in order to allow for stacked children to flow downwards.
+.mat-input-subscript-wrapper {
+  $line-height: 1.2em;
+
   position: absolute;
   font-size: 75%;
-  bottom: 0;
+  top: 100%;
+  width: 100%;
+  margin-top: -$line-height;
+  line-height: $line-height;
+  overflow: hidden; // prevents multi-line errors from overlapping the input
+}
 
-  &.mat-right {
-    right: 0;
-  }
+// Clears the floats on the hints. This is necessary for the hint animation to work.
+.mat-input-hint-wrapper {
+  display: flex;
+}
 
-  [dir='rtl'] & {
-    right: 0;
-    left: auto;
+.mat-input-hint-spacer {
+  flex: 1 0 $mat-input-hint-min-space;
+}
 
-    &.mat-right {
-      right: auto;
-      left: 0;
-    }
-  }
+// Single error message displayed beneath the input.
+.mat-input-error {
+  display: block;
 }
 
 .mat-input-prefix, .mat-input-suffix {

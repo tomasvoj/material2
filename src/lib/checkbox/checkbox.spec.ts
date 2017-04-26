@@ -13,22 +13,11 @@ import {MdCheckbox, MdCheckboxChange, MdCheckboxModule} from './index';
 import {ViewportRuler} from '../core/overlay/position/viewport-ruler';
 import {FakeViewportRuler} from '../core/overlay/position/fake-viewport-ruler';
 import {dispatchFakeEvent} from '../core/testing/dispatch-events';
-import {FocusOriginMonitor, FocusOrigin} from '../core';
 import {RIPPLE_FADE_IN_DURATION, RIPPLE_FADE_OUT_DURATION} from '../core/ripple/ripple-renderer';
-import {Subject} from 'rxjs/Subject';
 
 
 describe('MdCheckbox', () => {
   let fixture: ComponentFixture<any>;
-  let fakeFocusOriginMonitorSubject: Subject<FocusOrigin> = new Subject();
-  let fakeFocusOriginMonitor = {
-    monitor: () => fakeFocusOriginMonitorSubject.asObservable(),
-    unmonitor: () => {},
-    focusVia: (element: HTMLElement, renderer: any, focusOrigin: FocusOrigin) => {
-      element.focus();
-      fakeFocusOriginMonitorSubject.next(focusOrigin);
-    }
-  };
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -45,8 +34,7 @@ describe('MdCheckbox', () => {
         CheckboxWithFormControl,
       ],
       providers: [
-        {provide: ViewportRuler, useClass: FakeViewportRuler},
-        {provide: FocusOriginMonitor, useValue: fakeFocusOriginMonitor}
+        {provide: ViewportRuler, useClass: FakeViewportRuler}
       ]
     });
 
@@ -113,7 +101,7 @@ describe('MdCheckbox', () => {
       expect(inputElement.indeterminate).toBe(false);
     });
 
-    it('should set indeterminate to false when set checked', async(() => {
+    it('should set indeterminate to false when input clicked', async(() => {
       testComponent.isIndeterminate = true;
       fixture.detectChanges();
 
@@ -121,7 +109,7 @@ describe('MdCheckbox', () => {
       expect(inputElement.indeterminate).toBe(true);
       expect(testComponent.isIndeterminate).toBe(true);
 
-      testComponent.isChecked = true;
+      inputElement.click();
       fixture.detectChanges();
 
       fixture.whenStable().then(() => {
@@ -139,7 +127,7 @@ describe('MdCheckbox', () => {
         expect(inputElement.checked).toBe(true);
         expect(testComponent.isIndeterminate).toBe(true);
 
-        testComponent.isChecked = false;
+        inputElement.click();
         fixture.detectChanges();
 
         fixture.whenStable().then(() => {
@@ -151,6 +139,31 @@ describe('MdCheckbox', () => {
         });
       });
 
+    }));
+
+    it('should not set indeterminate to false when checked is set programmatically', async(() => {
+      testComponent.isIndeterminate = true;
+      fixture.detectChanges();
+
+      expect(checkboxInstance.indeterminate).toBe(true);
+      expect(inputElement.indeterminate).toBe(true);
+      expect(testComponent.isIndeterminate).toBe(true);
+
+      testComponent.isChecked = true;
+      fixture.detectChanges();
+
+      expect(checkboxInstance.checked).toBe(true);
+      expect(inputElement.indeterminate).toBe(true);
+      expect(inputElement.checked).toBe(true);
+      expect(testComponent.isIndeterminate).toBe(true);
+
+      testComponent.isChecked = false;
+      fixture.detectChanges();
+
+      expect(checkboxInstance.checked).toBe(false);
+      expect(inputElement.indeterminate).toBe(true);
+      expect(inputElement.checked).toBe(false);
+      expect(testComponent.isIndeterminate).toBe(true);
     }));
 
     it('should change native element checked when check programmatically', () => {
@@ -228,11 +241,11 @@ describe('MdCheckbox', () => {
       expect(checkboxInstance.checked).toBe(false);
     });
 
-    it('should overwrite indeterminate state when checked is re-set', async(() => {
+    it('should overwrite indeterminate state when clicked', async(() => {
       testComponent.isIndeterminate = true;
       fixture.detectChanges();
 
-      testComponent.isChecked = true;
+      inputElement.click();
       fixture.detectChanges();
 
       fixture.whenStable().then(() => {
@@ -356,7 +369,9 @@ describe('MdCheckbox', () => {
       expect(fixture.nativeElement.querySelectorAll('.mat-ripple-element').length)
           .toBe(0, 'Expected no ripples on load.');
 
-      fakeFocusOriginMonitorSubject.next('keyboard');
+      dispatchFakeEvent(inputElement, 'keydown');
+      dispatchFakeEvent(inputElement, 'focus');
+
       tick(RIPPLE_FADE_IN_DURATION);
 
       expect(fixture.nativeElement.querySelectorAll('.mat-ripple-element').length)
@@ -380,30 +395,41 @@ describe('MdCheckbox', () => {
         expect(checkboxNativeElement.querySelectorAll('.mat-ripple-element').length).toBe(1);
       });
 
-      it('should not have a ripple when disabled', () => {
-        let rippleElement = checkboxNativeElement.querySelector('[md-ripple]');
-        expect(rippleElement).toBeTruthy('Expected an enabled checkbox to have a ripple');
-
+      it('should not show ripples when disabled', () => {
         testComponent.isDisabled = true;
         fixture.detectChanges();
 
-        rippleElement = checkboxNativeElement.querySelector('[md-ripple]');
-        expect(rippleElement).toBeFalsy('Expected a disabled checkbox not to have a ripple');
+        dispatchFakeEvent(labelElement, 'mousedown');
+        dispatchFakeEvent(labelElement, 'mouseup');
+
+        expect(checkboxNativeElement.querySelectorAll('.mat-ripple-element').length).toBe(0);
+
+        testComponent.isDisabled = false;
+        fixture.detectChanges();
+
+        dispatchFakeEvent(labelElement, 'mousedown');
+        dispatchFakeEvent(labelElement, 'mouseup');
+
+        expect(checkboxNativeElement.querySelectorAll('.mat-ripple-element').length).toBe(1);
       });
 
-      it('should remove ripple if mdRippleDisabled input is set', async(() => {
+      it('should remove ripple if mdRippleDisabled input is set', () => {
         testComponent.disableRipple = true;
         fixture.detectChanges();
 
-        expect(checkboxNativeElement.querySelectorAll('[md-ripple]').length)
-          .toBe(0, 'Expect no [md-ripple] in checkbox');
+        dispatchFakeEvent(labelElement, 'mousedown');
+        dispatchFakeEvent(labelElement, 'mouseup');
+
+        expect(checkboxNativeElement.querySelectorAll('.mat-ripple-element').length).toBe(0);
 
         testComponent.disableRipple = false;
         fixture.detectChanges();
 
-        expect(checkboxNativeElement.querySelectorAll('[md-ripple]').length)
-          .toBe(1, 'Expect [md-ripple] in checkbox');
-      }));
+        dispatchFakeEvent(labelElement, 'mousedown');
+        dispatchFakeEvent(labelElement, 'mouseup');
+
+        expect(checkboxNativeElement.querySelectorAll('.mat-ripple-element').length).toBe(1);
+      });
     });
 
     describe('color behaviour', () => {
@@ -709,6 +735,7 @@ describe('MdCheckbox', () => {
     let checkboxDebugElement: DebugElement;
     let checkboxInstance: MdCheckbox;
     let testComponent: CheckboxWithFormControl;
+    let inputElement: HTMLInputElement;
 
     beforeEach(() => {
       fixture = TestBed.createComponent(CheckboxWithFormControl);
@@ -717,6 +744,7 @@ describe('MdCheckbox', () => {
       checkboxDebugElement = fixture.debugElement.query(By.directive(MdCheckbox));
       checkboxInstance = checkboxDebugElement.componentInstance;
       testComponent = fixture.debugElement.componentInstance;
+      inputElement = <HTMLInputElement>checkboxDebugElement.nativeElement.querySelector('input');
     });
 
     it('should toggle the disabled state', () => {
@@ -726,11 +754,13 @@ describe('MdCheckbox', () => {
       fixture.detectChanges();
 
       expect(checkboxInstance.disabled).toBe(true);
+      expect(inputElement.disabled).toBe(true);
 
       testComponent.formControl.enable();
       fixture.detectChanges();
 
       expect(checkboxInstance.disabled).toBe(false);
+      expect(inputElement.disabled).toBe(false);
     });
   });
 });

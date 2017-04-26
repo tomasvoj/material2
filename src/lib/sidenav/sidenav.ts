@@ -83,7 +83,7 @@ export class MdSidenav implements AfterContentInit, OnDestroy {
     }
   }
 
-  /** Mode of the sidenav; whether 'over' or 'side'. */
+  /** Mode of the sidenav; one of 'over', 'push' or 'side'. */
   @Input() mode: 'over' | 'push' | 'side' = 'over';
 
   /** Whether the sidenav can be closed with the escape key or not. */
@@ -369,6 +369,16 @@ export class MdSidenavContainer implements AfterContentInit {
 
     // Give the view a chance to render the initial state, then enable transitions.
     this._ngZone.onMicrotaskEmpty.first().subscribe(() => this._enableTransitions = true);
+  }
+
+  /** Calls `open` of both start and end sidenavs */
+  public open() {
+    return Promise.all([this._start, this._end].map(sidenav => sidenav && sidenav.open()));
+  }
+
+  /** Calls `close` of both start and end sidenavs */
+  public close() {
+    return Promise.all([this._start, this._end].map(sidenav => sidenav && sidenav.close()));
   }
 
   /**
