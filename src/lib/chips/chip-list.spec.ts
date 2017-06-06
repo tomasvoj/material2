@@ -1,12 +1,13 @@
-import {async, ComponentFixture, TestBed} from '@angular/core/testing';
+import {async, ComponentFixture, TestBed, fakeAsync, tick} from '@angular/core/testing';
 import {Component, DebugElement, QueryList} from '@angular/core';
 import {By} from '@angular/platform-browser';
 import {MdChip, MdChipList, MdChipsModule} from './index';
 import {FocusKeyManager} from '../core/a11y/focus-key-manager';
 import {MdInputModule} from '../input/index';
 import {FakeEvent} from '../core/a11y/list-key-manager.spec';
-import {LEFT_ARROW, RIGHT_ARROW, BACKSPACE, DELETE} from '../core/keyboard/keycodes';
+import {SPACE, TAB, LEFT_ARROW, RIGHT_ARROW, BACKSPACE, DELETE} from '../core/keyboard/keycodes';
 import {Dir} from '../core/rtl/dir';
+import {createKeyboardEvent} from '../core/testing/event-objects';
 
 export class FakeKeyboardEvent extends FakeEvent {
   constructor(keyCode: number, protected target: HTMLElement) {
@@ -31,7 +32,7 @@ describe('MdChipList', () => {
     TestBed.configureTestingModule({
       imports: [MdChipsModule, MdInputModule],
       declarations: [
-        StandardChipList, InputContainerChipList
+          StaticChipList, StandardChipList, InputContainerChipList
       ],
       providers: [{
         provide: Dir, useFactory: () => {
@@ -130,7 +131,7 @@ describe('MdChipList', () => {
           let nativeChips = chipListNativeElement.querySelectorAll('md-chip');
           let lastNativeChip = nativeChips[nativeChips.length - 1] as HTMLElement;
 
-          let LEFT_EVENT = new FakeKeyboardEvent(LEFT_ARROW, lastNativeChip) as any;
+          let LEFT_EVENT = createKeyboardEvent('keydown', LEFT_ARROW, lastNativeChip);
           let array = chips.toArray();
           let lastIndex = array.length - 1;
           let lastItem = array[lastIndex];
@@ -151,10 +152,9 @@ describe('MdChipList', () => {
           let nativeChips = chipListNativeElement.querySelectorAll('md-chip');
           let firstNativeChip = nativeChips[0] as HTMLElement;
 
-          let RIGHT_EVENT: KeyboardEvent =
-                new FakeKeyboardEvent(RIGHT_ARROW, firstNativeChip) as any;
-          let array = chips.toArray();
-          let firstItem = array[0];
+      let RIGHT_EVENT= createKeyboardEvent('keydown',RIGHT_ARROW, firstNativeChip) ;
+      let array = chips.toArray();
+      let firstItem = array[0];
 
           // Focus the last item in the array
           firstItem.focus();
@@ -208,6 +208,8 @@ describe('MdChipList', () => {
           let LEFT_EVENT: KeyboardEvent = new FakeKeyboardEvent(LEFT_ARROW, firstNativeChip) as any;
           let array = chips.toArray();
           let firstItem = array[0];
+            let SPACE_EVENT = createKeyboardEvent('keydown', SPACE, firstNativeChip);
+            let firstChip: MdChip = chips.toArray()[0];
 
           // Focus the last item in the array
           firstItem.focus();
@@ -223,8 +225,18 @@ describe('MdChipList', () => {
 
       });
 
-    });
-  });
+
+      });
+  it('allow focus to escape when tabbing away', fakeAsync(() => {
+        chipListInstance._keyManager.onKeydown(createKeyboardEvent('keydown', TAB));
+
+        expect(chipListInstance._tabIndex)
+            .toBe(-1, 'Expected tabIndex to be set to -1 temporarily.');
+
+        tick();
+
+        expect(chipListInstance._tabIndex).toBe(0, 'Expected tabIndex to be reset back to 0');
+      }));  });
 
   describe('InputContainerChipList', () => {
 
@@ -270,7 +282,22 @@ describe('MdChipList', () => {
           // It focuses the last chip
           expect(manager.activeItemIndex).toEqual(chips.length - 1);
         });
+          it('SPACE ignores selection', () => {
+              let SPACE_EVENT = createKeyboardEvent('keydown', SPACE);
+              let firstChip: MdChip = chips.toArray()[0];
 
+              spyOn(testComponent, 'chipSelect');
+
+              // Make sure we have the first chip focused
+              chipListInstance.focus();
+
+              // Use the spacebar to attempt to select the chip
+              chipListInstance._keydown(SPACE_EVENT);
+              fixture.detectChanges();
+
+              expect(firstChip.selected).toBeFalsy();
+              expect(testComponent.chipSelect).not.toHaveBeenCalled();
+          });
       });
     });
 

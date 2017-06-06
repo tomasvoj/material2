@@ -4,17 +4,21 @@ import {
   Component,
   ContentChildren,
   ElementRef,
+  Input
   QueryList,
   Renderer,
-  ViewEncapsulation
+  ViewEncapsulation,
+  OnDestroy,
 } from '@angular/core';
 
 import {MdChip} from './chip';
 import {FocusKeyManager} from '../core/a11y/focus-key-manager';
 import {
-  LEFT_ARROW, RIGHT_ARROW, BACKSPACE, DELETE, UP_ARROW, DOWN_ARROW
+    SPACE, TAB, LEFT_ARROW, RIGHT_ARROW, BACKSPACE, DELETE, UP_ARROW, DOWN_ARROW
 } from '../core/keyboard/keycodes';
 import {Dir} from '../core/rtl/dir';
+import {coerceBooleanProperty} from '../core/coercion/boolean-property';
+import {Subscription} from 'rxjs/Subscription';
 
 /**
  * A material design chips component (named ChipList for it's similarity to the List component).
@@ -31,6 +35,8 @@ import {Dir} from '../core/rtl/dir';
   selector: 'md-chip-list, mat-chip-list',
   template: `<div class="mat-chip-list-wrapper"><ng-content></ng-content></div>`,
   host: {
+    // Properties
+    '[attr.tabindex]': '_tabIndex',
     'role': 'listbox',
     '[class.mat-chip-list]': 'true',
 
@@ -46,7 +52,7 @@ import {Dir} from '../core/rtl/dir';
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MdChipList implements AfterContentInit {
+export class MdChipList implements AfterContentInit, OnDestroy {
 
   /** When a chip is destroyed, we track the index so we can focus the appropriate next chip. */
   protected _destroyedIndex: number = null;
@@ -57,8 +63,11 @@ export class MdChipList implements AfterContentInit {
   /** Holds our current input if provided. */
   protected _inputElement: HTMLInputElement;
 
-  /** Whether or not the chip list is currently focusable via keyboard interaction. */
-  _tabIndex = -1;
+    /** Subscription to tabbing out from the chip list. */
+    private _tabOutSubscription: Subscription;
+
+    /** Whether or not the chip is selectable. */
+    protected _selectable: boolean = true;
 
   /** The FocusKeyManager which handles focus. */
   _keyManager: FocusKeyManager;
@@ -70,8 +79,18 @@ export class MdChipList implements AfterContentInit {
               protected _dir: Dir) {
   }
 
+    /** Tab index for the chip list. */
+    _tabIndex = 0;
+
   ngAfterContentInit(): void {
     this._keyManager = new FocusKeyManager(this.chips).withWrap();
+
+    // Prevents the chip list from capturing focus and redirecting
+    // it back to the first chip when the user tabs out.
+    this._tabOutSubscription = this._keyManager.tabOut.subscribe(() => {
+      this._tabIndex = -1;
+      setTimeout(() => this._tabIndex = 0);
+    });
 
     // Go ahead and subscribe all of the initial chips
     this._subscribeChips(this.chips);
@@ -96,13 +115,19 @@ export class MdChipList implements AfterContentInit {
     });
   }
 
+  ngOnDestroy(): void {
+    if (this._tabOutSubscription) {
+      this._tabOutSubscription.unsubscribe();
+    }
+  }
+
   /**
    * Associates an HTML input element with this chip list.
    *
    * @param inputElement The input to associate.
    */
   registerInput(inputElement: HTMLInputElement) {
-    this._inputElement = inputElement;
+     this._inputElement = inputElement;
   }
 
   /**

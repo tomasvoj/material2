@@ -1,6 +1,6 @@
 import {join} from 'path';
 import {task, watch} from 'gulp';
-import {PROJECT_ROOT, SOURCE_ROOT} from '../constants';
+import {PROJECT_ROOT, SOURCE_ROOT} from '../build-config';
 import {sequenceTask} from '../util/task_helpers';
 
 // There are no type definitions available for these imports.
@@ -9,10 +9,8 @@ const runSequence = require('run-sequence');
 /** Builds everything that is necessary for karma. */
 task(':test:build', sequenceTask(
   'clean',
-  // Build the material bundles without any test files. (CDK will be also built)
-  'material:build',
-  // Additionally build the test files for material and the CDK.
-  ['material:build:esm:tests', 'cdk:build:esm:tests']
+  // Build ESM output of Material that also includes all test files.
+  'material:build-tests',
 ));
 
 /**

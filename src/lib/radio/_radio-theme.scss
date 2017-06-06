@@ -1,5 +1,6 @@
 @import '../core/theming/palette';
 @import '../core/theming/theming';
+@import '../core/typography/typography-utils';
 
 
 @mixin mat-radio-theme($theme) {
@@ -33,5 +34,15 @@
     .mat-radio-ripple .mat-ripple-element, .mat-radio-inner-circle {
       background-color: mat-color($foreground, disabled);
     }
+
+    .mat-radio-label-content {
+      color: mat-color($foreground, disabled);
+    }
+  }
+}
+
+@mixin mat-radio-typography($config) {
+  .mat-radio-button {
+    font-family: mat-font-family($config);
   }
 }

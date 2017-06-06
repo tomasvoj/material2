@@ -1,4 +1,4 @@
-import {NgModule, ModuleWithProviders} from '@angular/core';
+import {NgModule} from '@angular/core';
 import {MdChipList} from './chip-list';
 import {MdChip} from './chip';
 import {MdChipInput} from './chip-input';
@@ -14,12 +14,4 @@ export * from './chip-remove';
   exports: [MdChipList, MdChip, MdChipInput, MdChipRemove],
   declarations: [MdChipList, MdChip, MdChipInput, MdChipRemove]
 })
-export class MdChipsModule {
-  /** @deprecated */
-  static forRoot(): ModuleWithProviders {
-    return {
-      ngModule: MdChipsModule,
-      providers: []
-    };
-  }
-}
+export class MdChipsModule {}

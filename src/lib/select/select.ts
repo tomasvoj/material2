@@ -18,7 +18,7 @@ import {
   OnInit,
 } from '@angular/core';
 import {MdOption, MdOptionSelectionChange} from '../core/option/option';
-import {ENTER, SPACE} from '../core/keyboard/keycodes';
+import {ENTER, SPACE, UP_ARROW, DOWN_ARROW, HOME, END} from '../core/keyboard/keycodes';
 import {FocusKeyManager} from '../core/a11y/focus-key-manager';
 import {Dir} from '../core/rtl/dir';
 import {Observable} from 'rxjs/Observable';
@@ -30,9 +30,10 @@ import {ConnectedOverlayDirective} from '../core/overlay/overlay-directives';
 import {ViewportRuler} from '../core/overlay/position/viewport-ruler';
 import {SelectionModel} from '../core/selection/selection';
 import {ScrollDispatcher} from '../core/overlay/scroll/scroll-dispatcher';
-import {MdSelectDynamicMultipleError, MdSelectNonArrayValueError} from './select-errors';
+import {getMdSelectDynamicMultipleError, getMdSelectNonArrayValueError} from './select-errors';
 import 'rxjs/add/observable/merge';
 import 'rxjs/add/operator/startWith';
+import 'rxjs/add/operator/filter';
 
 
 /**
@@ -111,7 +112,7 @@ export type MdSelectFloatPlaceholderType = 'always' | 'never' | 'auto';
     '[attr.aria-owns]': '_optionIds',
     '[class.mat-select-disabled]': 'disabled',
     '[class.mat-select]': 'true',
-    '(keydown)': '_handleKeydown($event)',
+    '(keydown)': '_handleClosedKeydown($event)',
     '(blur)': '_onBlur()',
   },
   animations: [
@@ -133,9 +134,6 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
 
   /** Subscription to tab events while overlay is focused. */
   private _tabSubscription: Subscription;
-
-  /** Subscription to global scrolled events while the select is open. */
-  private _scrollSubscription: Subscription;
 
   /** Whether filling out the select is required in the form.  */
   private _required: boolean = false;
@@ -170,14 +168,14 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
    */
   _triggerWidth: number;
 
+  /** Manages keyboard events for options in the panel. */
+  _keyManager: FocusKeyManager;
+
   /**
    * The width of the selected option's value. Must be set programmatically
    * to ensure its overflow is clipped, as it's absolutely positioned.
    */
   _selectedValueWidth: number;
-
-  /** Manages keyboard events for options in the panel. */
-  _keyManager: FocusKeyManager;
 
   /** View -> model callback called when value changes */
   _onChange = (value: any) => {};
@@ -231,6 +229,9 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
   /** All of the defined select options. */
   @ContentChildren(MdOption) options: QueryList<MdOption>;
 
+  /** Classes to be passed to the select panel. Supports the same syntax as `ngClass`. */
+  @Input() panelClass: string|string[]|Set<string>|{[key: string]: any};
+
   /** Placeholder to be shown if no value has been selected. */
   @Input()
   get placeholder() { return this._placeholder; }
@@ -258,7 +259,7 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
   get multiple(): boolean { return this._multiple; }
   set multiple(value: boolean) {
     if (this._selectionModel) {
-      throw new MdSelectDynamicMultipleError();
+      throw getMdSelectDynamicMultipleError();
     }
 
     this._multiple = coerceBooleanProperty(value);
@@ -314,8 +315,7 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
 
   constructor(private _element: ElementRef, private _renderer: Renderer2,
               private _viewportRuler: ViewportRuler, private _changeDetectorRef: ChangeDetectorRef,
-              private _scrollDispatcher: ScrollDispatcher, @Optional() private _dir: Dir,
-              @Self() @Optional() public _control: NgControl,
+              @Optional() private _dir: Dir, @Self() @Optional() public _control: NgControl,
               @Attribute('tabindex') tabIndex: string) {
 
     if (this._control) {
@@ -374,9 +374,6 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
     this._calculateOverlayPosition();
     this._placeholderState = this._floatPlaceholderState();
     this._panelOpen = true;
-    this._scrollSubscription = this._scrollDispatcher.scrolled(0, () => {
-      this.overlayDir.overlayRef.updatePosition();
-    });
   }
 
   /** Closes the overlay panel and focuses the host element. */
@@ -386,11 +383,6 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
 
       if (this._selectionModel.isEmpty()) {
         this._placeholderState = '';
-      }
-
-      if (this._scrollSubscription) {
-        this._scrollSubscription.unsubscribe();
-        this._scrollSubscription = null;
       }
 
       this._focusHost();
@@ -480,28 +472,26 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
     this._triggerWidth = this._getTriggerRect().width;
   }
 
-  /** Ensures the panel opens if activated by the keyboard. */
-  _handleKeydown(event: KeyboardEvent): void {
-    if (event.keyCode === ENTER || event.keyCode === SPACE) {
-      this.open();
-    } else if (!this.disabled) {
-      let prevActiveItem = this._keyManager.activeItem;
-
-      // Cycle though the select options even when the select is closed,
-      // matching the behavior of the native select element.
-      // TODO(crisbeto): native selects also cycle through the options with left/right arrows,
-      // however the key manager only supports up/down at the moment.
-      this._keyManager.onKeydown(event);
-
-      let currentActiveItem = this._keyManager.activeItem as MdOption;
-
-      if (this._multiple) {
+  /** Handles the keyboard interactions of a closed select. */
+  _handleClosedKeydown(event: KeyboardEvent): void {
+    if (!this.disabled) {
+      if (event.keyCode === ENTER || event.keyCode === SPACE) {
+        event.preventDefault(); // prevents the page from scrolling down when pressing space
         this.open();
-      } else if (currentActiveItem !== prevActiveItem) {
-        this._clearSelection();
-        this._setSelectionByValue(currentActiveItem.value);
-        this._propagateChanges();
+      } else if (event.keyCode === UP_ARROW || event.keyCode === DOWN_ARROW) {
+        this._handleArrowKey(event);
       }
+    }
+  }
+
+  /** Handles keypresses inside the panel. */
+  _handlePanelKeydown(event: KeyboardEvent): void {
+    if (event.keyCode === HOME || event.keyCode === END) {
+      event.preventDefault();
+      event.keyCode === HOME ? this._keyManager.setFirstItemActive() :
+                               this._keyManager.setLastItemActive();
+    } else {
+      this._keyManager.onKeydown(event);
     }
   }
 
@@ -565,15 +555,16 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
     const isArray = Array.isArray(value);
 
     if (this.multiple && value && !isArray) {
-      throw new MdSelectNonArrayValueError();
+      throw getMdSelectNonArrayValueError();
     }
 
+    this._clearSelection();
+
     if (isArray) {
-      this._clearSelection();
       value.forEach((currentValue: any) => this._selectValue(currentValue));
       this._sortValues();
-    } else if (!this._selectValue(value)) {
-      this._clearSelection();
+    } else {
+      this._selectValue(value);
     }
 
     this._setValueWidth();
@@ -591,7 +582,9 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
    */
   private _selectValue(value: any): MdOption {
     let optionsArray = this.options.toArray();
-    let correspondingOption = optionsArray.find(option => option.value === value);
+    let correspondingOption = optionsArray.find(option => {
+      return option.value != null && option.value === value;
+    });
 
     if (correspondingOption) {
       correspondingOption.select();
@@ -651,13 +644,19 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
   private _onSelect(option: MdOption): void {
     const wasSelected = this._selectionModel.isSelected(option);
 
+    // TODO(crisbeto): handle blank/null options inside multi-select.
     if (this.multiple) {
       this._selectionModel.toggle(option);
       wasSelected ? option.deselect() : option.select();
       this._sortValues();
     } else {
-      this._clearSelection(option);
-      this._selectionModel.select(option);
+      this._clearSelection(option.value == null ? null : option);
+
+      if (option.value == null) {
+        this._propagateChanges(option.value);
+      } else {
+        this._selectionModel.select(option);
+      }
     }
 
     if (wasSelected !== this._selectionModel.isSelected(option)) {
@@ -690,10 +689,14 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
   }
 
   /** Emits change event to set the model value. */
-  private _propagateChanges(): void {
-    let valueToEmit = Array.isArray(this.selected) ?
-      this.selected.map(option => option.value) :
-      this.selected.value;
+  private _propagateChanges(fallbackValue?: any): void {
+    let valueToEmit = null;
+
+    if (Array.isArray(this.selected)) {
+      valueToEmit = this.selected.map(option => option.value);
+    } else {
+      valueToEmit = this.selected ? this.selected.value : fallbackValue;
+    }
 
     this._onChange(valueToEmit);
     this.change.emit(new MdSelectChange(this, valueToEmit));
@@ -812,11 +815,11 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
   }
 
   /**
-   * Determines the CSS `visibility` of the placeholder element.
+   * Determines the CSS `opacity` of the placeholder element.
    */
-  _getPlaceholderVisibility(): 'visible'|'hidden' {
+  _getPlaceholderOpacity(): string {
     return (this.floatPlaceholder !== 'never' || this._selectionModel.isEmpty()) ?
-        'visible' : 'hidden';
+        '1' : '0';
   }
 
   /** Returns the aria-label of the select component. */
@@ -975,6 +978,31 @@ export class MdSelect implements AfterContentInit, OnDestroy, OnInit, ControlVal
   private _floatPlaceholderState(): string {
     return this._isRtl() ? 'floating-rtl' : 'floating-ltr';
   }
+
+  /** Handles the user pressing the arrow keys on a closed select.  */
+  private _handleArrowKey(event: KeyboardEvent): void {
+    if (this._multiple) {
+      event.preventDefault();
+      this.open();
+    } else {
+      const prevActiveItem = this._keyManager.activeItem;
+
+      // Cycle though the select options even when the select is closed,
+      // matching the behavior of the native select element.
+      // TODO(crisbeto): native selects also cycle through the options with left/right arrows,
+      // however the key manager only supports up/down at the moment.
+      this._keyManager.onKeydown(event);
+
+      const currentActiveItem = this._keyManager.activeItem as MdOption;
+
+      if (currentActiveItem !== prevActiveItem) {
+        this._clearSelection();
+        this._setSelectionByValue(currentActiveItem.value);
+        this._propagateChanges();
+      }
+    }
+  }
+
 }
 
 /** Clamps a value n between min and max values. */

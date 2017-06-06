@@ -39,7 +39,7 @@ describe('MdDialog', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [MdDialogModule.forRoot(), DialogTestModule],
+      imports: [MdDialogModule, DialogTestModule],
       providers: [
         {provide: OverlayContainer, useFactory: () => {
           overlayContainerElement = document.createElement('div');
@@ -72,7 +72,7 @@ describe('MdDialog', () => {
     viewContainerFixture.detectChanges();
 
     expect(overlayContainerElement.textContent).toContain('Pizza');
-    expect(dialogRef.componentInstance).toEqual(jasmine.any(PizzaMsg));
+    expect(dialogRef.componentInstance instanceof PizzaMsg).toBe(true);
     expect(dialogRef.componentInstance.dialogRef).toBe(dialogRef);
 
     viewContainerFixture.detectChanges();
@@ -90,7 +90,7 @@ describe('MdDialog', () => {
     let dialogInjector = dialogRef.componentInstance.dialogInjector;
 
     expect(dialogRef.componentInstance.dialogRef).toBe(dialogRef);
-    expect(dialogInjector.get(DirectiveWithViewContainer)).toBeTruthy(
+    expect(dialogInjector.get<DirectiveWithViewContainer>(DirectiveWithViewContainer)).toBeTruthy(
       'Expected the dialog component to be created with the injector from the viewContainerRef.'
     );
   });
@@ -101,7 +101,7 @@ describe('MdDialog', () => {
     viewContainerFixture.detectChanges();
 
     expect(overlayContainerElement.textContent).toContain('Pizza');
-    expect(dialogRef.componentInstance).toEqual(jasmine.any(PizzaMsg));
+    expect(dialogRef.componentInstance instanceof PizzaMsg).toBe(true);
     expect(dialogRef.componentInstance.dialogRef).toBe(dialogRef);
 
     viewContainerFixture.detectChanges();
@@ -367,6 +367,18 @@ describe('MdDialog', () => {
     });
   }));
 
+  it('should have the componentInstance available in the afterClosed callback', fakeAsync(() => {
+    let dialogRef = dialog.open(PizzaMsg);
+
+    dialogRef.afterClosed().subscribe(() => {
+      expect(dialogRef.componentInstance).toBeTruthy('Expected component instance to be defined.');
+    });
+
+    dialogRef.close();
+    tick(500);
+    viewContainerFixture.detectChanges();
+  }));
+
   describe('passing in data', () => {
     it('should be able to pass in data', () => {
       let config = {
@@ -455,6 +467,19 @@ describe('MdDialog', () => {
     });
   });
 
+  describe('panelClass option', () => {
+    it('should have custom panel class', () => {
+      dialog.open(PizzaMsg, {
+        panelClass: 'custom-panel-class',
+        viewContainerRef: testViewContainerRef
+      });
+
+      viewContainerFixture.detectChanges();
+
+      expect(overlayContainerElement.querySelector('.custom-panel-class')).toBeTruthy();
+    });
+  });
+
   describe('backdropClass option', () => {
     it('should have default backdrop class', () => {
       dialog.open(PizzaMsg, {
@@ -480,15 +505,9 @@ describe('MdDialog', () => {
   });
 
   describe('focus management', () => {
-
     // When testing focus, all of the elements must be in the DOM.
-    beforeEach(() => {
-      document.body.appendChild(overlayContainerElement);
-    });
-
-    afterEach(() => {
-      document.body.removeChild(overlayContainerElement);
-    });
+    beforeEach(() => document.body.appendChild(overlayContainerElement));
+    afterEach(() => document.body.removeChild(overlayContainerElement));
 
     it('should focus the first tabbable element of the dialog on open', fakeAsync(() => {
       dialog.open(PizzaMsg, {
@@ -515,17 +534,19 @@ describe('MdDialog', () => {
 
       viewContainerFixture.detectChanges();
       flushMicrotasks();
-
       expect(document.activeElement.id)
           .not.toBe('dialog-trigger', 'Expected the focus to change when dialog was opened.');
 
       dialogRef.close();
+      expect(document.activeElement.id).not.toBe('dialog-trigger',
+          'Expcted the focus not to have changed before the animation finishes.');
+
       tick(500);
       viewContainerFixture.detectChanges();
       flushMicrotasks();
 
-      expect(document.activeElement.id)
-          .toBe('dialog-trigger', 'Expected that the trigger was refocused after dialog close');
+      expect(document.activeElement.id).toBe('dialog-trigger',
+          'Expected that the trigger was refocused after the dialog is closed.');
 
       document.body.removeChild(button);
     }));
@@ -552,7 +573,7 @@ describe('MdDialog', () => {
       flushMicrotasks();
 
       expect(document.activeElement.id).toBe('input-to-be-focused',
-          'Expected that the trigger was refocused after dialog close');
+          'Expected that the trigger was refocused after the dialog is closed.');
 
       document.body.removeChild(button);
       document.body.removeChild(input);
@@ -604,6 +625,18 @@ describe('MdDialog', () => {
       expect(button.getAttribute('type')).toBe('button');
     });
 
+    it('should return the [md-dialog-close] result when clicking on the close button', async(() => {
+      let afterCloseCallback = jasmine.createSpy('afterClose callback');
+      dialogRef.afterClosed().subscribe(afterCloseCallback);
+
+      (overlayContainerElement.querySelector('button.close-with-true') as HTMLElement).click();
+      viewContainerFixture.detectChanges();
+
+      viewContainerFixture.whenStable().then(() => {
+        expect(afterCloseCallback).toHaveBeenCalledWith(true);
+      });
+    }));
+
   });
 });
 
@@ -615,7 +648,7 @@ describe('MdDialog with a parent MdDialog', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [MdDialogModule.forRoot(), DialogTestModule],
+      imports: [MdDialogModule, DialogTestModule],
       declarations: [ComponentThatProvidesMdDialog],
       providers: [
         {provide: OverlayContainer, useFactory: () => {
@@ -718,6 +751,7 @@ class PizzaMsg {
     <md-dialog-content>Lorem ipsum dolor sit amet.</md-dialog-content>
     <md-dialog-actions>
       <button md-dialog-close [aria-label]="closeButtonAriaLabel">Close</button>
+      <button class="close-with-true" [md-dialog-close]="true">Close and return true</button>
       <div md-dialog-close>Should not close</div>
     </md-dialog-actions>
   `

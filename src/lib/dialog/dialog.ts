@@ -2,7 +2,13 @@ import {Injector, ComponentRef, Injectable, Optional, SkipSelf, TemplateRef} fro
 import {Location} from '@angular/common';
 import {Observable} from 'rxjs/Observable';
 import {Subject} from 'rxjs/Subject';
-import {Overlay, OverlayRef, ComponentType, OverlayState, ComponentPortal} from '../core';
+import {
+  Overlay,
+  OverlayRef,
+  ComponentType,
+  OverlayState,
+  ComponentPortal,
+} from '../core';
 import {extendObject} from '../core/util/object-extend';
 import {ESCAPE} from '../core/keyboard/keycodes';
 import {DialogInjector} from './dialog-injector';
@@ -118,7 +124,9 @@ export class MdDialog {
    */
   private _getOverlayState(dialogConfig: MdDialogConfig): OverlayState {
     let overlayState = new OverlayState();
+    overlayState.panelClass = dialogConfig.panelClass;
     overlayState.hasBackdrop = dialogConfig.hasBackdrop;
+    overlayState.scrollStrategy = this._overlay.scrollStrategies.block();
     if (dialogConfig.backdropClass) {
       overlayState.backdropClass = dialogConfig.backdropClass;
     }

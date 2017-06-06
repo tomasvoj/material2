@@ -6,7 +6,7 @@ import {
   OnDestroy,
   OnInit,
   Output,
-  Renderer
+  Renderer2,
 } from '@angular/core';
 
 import {Observable} from 'rxjs/Observable';
@@ -78,7 +78,7 @@ export class MdChip implements Focusable, OnInit, OnDestroy {
   /** Emitted when a chip is to be removed. */
   @Output('remove') onRemove = new EventEmitter<MdChipEvent>();
 
-  constructor(protected _renderer: Renderer, protected _elementRef: ElementRef) {
+  constructor(protected _renderer: Renderer2, protected _elementRef: ElementRef) {
   }
 
   ngOnInit(): void {
@@ -161,7 +161,7 @@ export class MdChip implements Focusable, OnInit, OnDestroy {
 
   /** Allows for programmatic focusing of the chip. */
   focus(): void {
-    this._renderer.invokeElementMethod(this._elementRef.nativeElement, 'focus');
+    this._elementRef.nativeElement.focus();
     this.onFocus.emit({chip: this});
   }
 
@@ -241,10 +241,13 @@ export class MdChip implements Focusable, OnInit, OnDestroy {
   private _addDefaultCSSClass() {
     let el: HTMLElement = this._elementRef.nativeElement;
 
+    // Always add the `mat-chip` class
+    this._renderer.addClass(el, 'mat-chip');
+
     // If we are a basic chip, also add the `mat-basic-chip` class for :not() targeting
     if (el.nodeName.toLowerCase() == 'mat-basic-chip' || el.hasAttribute('mat-basic-chip') ||
         el.nodeName.toLowerCase() == 'md-basic-chip' || el.hasAttribute('md-basic-chip')) {
-      el.classList.add('mat-basic-chip');
+      this._renderer.addClass(el, 'mat-basic-chip');
     }
   }
 
@@ -258,7 +261,11 @@ export class MdChip implements Focusable, OnInit, OnDestroy {
   /** Sets the mat-color on the native element. */
   private _setElementColor(color: string, isAdd: boolean) {
     if (color != null && color != '') {
-      this._renderer.setElementClass(this._elementRef.nativeElement, `mat-${color}`, isAdd);
+      if (isAdd) {
+        this._renderer.addClass(this._elementRef.nativeElement, `mat-${color}`);
+      } else {
+        this._renderer.removeClass(this._elementRef.nativeElement, `mat-${color}`);
+      }
     }
   }
 }

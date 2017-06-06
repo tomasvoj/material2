@@ -1,6 +1,8 @@
 $mat-chip-font-size: 13px;
 $mat-chip-line-height: 16px;
 $mat-chip-border-width: 2px;
+$mat-chip-vertical-padding: 8px;
+$mat-chip-horizontal-padding: 12px;
 
 $mat-chip-vertical-padding: 8px - $mat-chip-border-width;
 $mat-chip-horizontal-padding: 12px - $mat-chip-border-width;
@@ -13,7 +15,6 @@ $mat-chip-remove-size: 24px;
 $mat-chip-remove-font-size: 18px;
 
 .mat-chip-list-wrapper {
-
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
@@ -68,8 +69,14 @@ $mat-chip-remove-font-size: 18px;
   border: $mat-chip-border-width solid transparent;
   border-radius: $mat-chip-horizontal-padding * 2;
 
-  font-size: $mat-chip-font-size;
-  line-height: $mat-chip-line-height;
+  // Apply a margin to adjacent sibling chips.
+  & + & {
+    margin: 0 0 0 $mat-chips-chip-margin;
+
+    [dir='rtl'] & {
+      margin: 0 $mat-chips-chip-margin 0 0;
+    }
+  }
 
   &.mat-chip-has-remove-icon {
     padding-right: $mat-chip-remove-margin;

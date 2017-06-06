@@ -1,20 +1,24 @@
 import {
+  AfterContentInit,
   Component,
-  ViewEncapsulation,
-  ContentChildren,
   ContentChild,
-  QueryList,
+  ContentChildren,
   Directive,
   ElementRef,
   Input,
   Optional,
-  Renderer,
-  AfterContentInit,
+  QueryList,
+  Renderer2,
+  ViewEncapsulation
 } from '@angular/core';
-import {MdLine, MdLineSetter, coerceBooleanProperty} from '../core';
+import {coerceBooleanProperty, MdLine, MdLineSetter} from '../core';
 
 @Directive({
-  selector: 'md-divider, mat-divider'
+  selector: 'md-divider, mat-divider',
+  host: {
+    'role': 'separator',
+    'aria-orientation': 'horizontal'
+  }
 })
 export class MdListDivider {}
 
@@ -22,7 +26,8 @@ export class MdListDivider {}
   moduleId: module.id,
   selector: 'md-list, mat-list, md-nav-list, mat-nav-list',
   host: {
-    'role': 'list'},
+    'role': 'list'
+  },
   template: '<ng-content></ng-content>',
   styleUrls: ['list.css'],
   encapsulation: ViewEncapsulation.None
@@ -128,8 +133,6 @@ export class MdListItem implements AfterContentInit {
   private _disableRipple: boolean = false;
   private _isNavList: boolean = false;
 
-  _hasFocus: boolean = false;
-
   /**
    * Whether the ripple effect on click should be disabled. This applies only to list items that are
    * part of a nav list. The value of `disableRipple` on the `md-nav-list` overrides this flag.
@@ -142,11 +145,14 @@ export class MdListItem implements AfterContentInit {
 
   @ContentChild(MdListAvatarCssMatStyler)
   set _hasAvatar(avatar: MdListAvatarCssMatStyler) {
-    this._renderer.setElementClass(
-        this._element.nativeElement, 'mat-list-item-avatar', avatar != null);
+    if (avatar != null) {
+      this._renderer.addClass(this._element.nativeElement, 'mat-list-item-avatar');
+    } else {
+      this._renderer.removeClass(this._element.nativeElement, 'mat-list-item-avatar');
+    }
   }
 
-  constructor(private _renderer: Renderer,
+  constructor(private _renderer: Renderer2,
               private _element: ElementRef,
               @Optional() private _list: MdList,
               @Optional() navList: MdNavListCssMatStyler) {
@@ -163,10 +169,15 @@ export class MdListItem implements AfterContentInit {
   }
 
   _handleFocus() {
-    this._hasFocus = true;
+    this._renderer.addClass(this._element.nativeElement, 'mat-list-item-focus');
   }
 
   _handleBlur() {
-    this._hasFocus = false;
+    this._renderer.removeClass(this._element.nativeElement, 'mat-list-item-focus');
+  }
+
+  /** Retrieves the DOM element of the component host. */
+  _getHostElement(): HTMLElement {
+    return this._element.nativeElement;
   }
 }

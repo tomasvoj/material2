@@ -1,28 +1,30 @@
 import {
+  AfterContentInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
-  Renderer,
-  forwardRef,
-  ChangeDetectionStrategy,
-  Input,
-  Output,
   EventEmitter,
-  AfterContentInit,
-  ViewChild,
-  ViewEncapsulation,
+  forwardRef,
+  Input,
   OnDestroy,
+  Output,
+  Renderer2,
+  ViewChild,
+  ViewEncapsulation
 } from '@angular/core';
 import {
   applyCssTransform,
   coerceBooleanProperty,
-  HammerInput,
-  FocusOriginMonitor,
   FocusOrigin,
+  FocusOriginMonitor,
+  HammerInput,
   MdRipple,
   RippleRef
 } from '../core';
 import {ControlValueAccessor, NG_VALUE_ACCESSOR} from '@angular/forms';
-import {Observable} from 'rxjs/Observable';
+import {mixinDisabled, CanDisable} from '../core/common-behaviors/disabled';
+
 
 export const MD_SLIDE_TOGGLE_VALUE_ACCESSOR: any = {
   provide: NG_VALUE_ACCESSOR,
@@ -39,9 +41,13 @@ export class MdSlideToggleChange {
 // Increasing integer for generating unique ids for slide-toggle components.
 let nextId = 0;
 
-/**
- * Two-state control, which can be also called `switch`.
- */
+
+
+// Boilerplate for applying mixins to MdSlideToggle.
+export class MdSlideToggleBase { }
+export const _MdSlideToggleMixinBase = mixinDisabled(MdSlideToggleBase);
+
+/** Represents a slidable "switch" toggle that can be moved between on and off. */
 @Component({
   moduleId: module.id,
   selector: 'md-slide-toggle, mat-slide-toggle',
@@ -54,11 +60,12 @@ let nextId = 0;
   templateUrl: 'slide-toggle.html',
   styleUrls: ['slide-toggle.css'],
   providers: [MD_SLIDE_TOGGLE_VALUE_ACCESSOR],
+  inputs: ['disabled'],
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class MdSlideToggle implements OnDestroy, AfterContentInit, ControlValueAccessor {
-
+export class MdSlideToggle extends _MdSlideToggleMixinBase
+    implements OnDestroy, AfterContentInit, ControlValueAccessor, CanDisable {
   private onChange = (_: any) => {};
   private onTouched = () => {};
 
@@ -67,7 +74,6 @@ export class MdSlideToggle implements OnDestroy, AfterContentInit, ControlValueA
   private _checked: boolean = false;
   private _color: string;
   private _slideRenderer: SlideToggleRenderer = null;
-  private _disabled: boolean = false;
   private _required: boolean = false;
   private _disableRipple: boolean = false;
 
@@ -92,11 +98,6 @@ export class MdSlideToggle implements OnDestroy, AfterContentInit, ControlValueA
   /** Used to set the aria-labelledby attribute on the underlying input element. */
   @Input('aria-labelledby') ariaLabelledby: string = null;
 
-  /** Whether the slide-toggle is disabled. */
-  @Input()
-  get disabled(): boolean { return this._disabled; }
-  set disabled(value) { this._disabled = coerceBooleanProperty(value); }
-
   /** Whether the slide-toggle is required. */
   @Input()
   get required(): boolean { return this._required; }
@@ -120,8 +121,11 @@ export class MdSlideToggle implements OnDestroy, AfterContentInit, ControlValueA
   @ViewChild(MdRipple) _ripple: MdRipple;
 
   constructor(private _elementRef: ElementRef,
-              private _renderer: Renderer,
-              private _focusOriginMonitor: FocusOriginMonitor) {}
+              private _renderer: Renderer2,
+              private _focusOriginMonitor: FocusOriginMonitor,
+              private _changeDetectorRef: ChangeDetectorRef) {
+    super();
+  }
 
   ngAfterContentInit() {
     this._slideRenderer = new SlideToggleRenderer(this._elementRef);
@@ -188,6 +192,7 @@ export class MdSlideToggle implements OnDestroy, AfterContentInit, ControlValueA
   /** Implemented as a part of ControlValueAccessor. */
   setDisabledState(isDisabled: boolean): void {
     this.disabled = isDisabled;
+    this._changeDetectorRef.markForCheck();
   }
 
   /** Focuses the slide-toggle. */
@@ -241,7 +246,11 @@ export class MdSlideToggle implements OnDestroy, AfterContentInit, ControlValueA
 
   private _setElementColor(color: string, isAdd: boolean) {
     if (color != null && color != '') {
-      this._renderer.setElementClass(this._elementRef.nativeElement, `mat-${color}`, isAdd);
+      if (isAdd) {
+        this._renderer.addClass(this._elementRef.nativeElement, `mat-${color}`);
+      } else {
+        this._renderer.removeClass(this._elementRef.nativeElement, `mat-${color}`);
+      }
     }
   }
 
